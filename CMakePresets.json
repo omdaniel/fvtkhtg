@@ -1,0 +1,116 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "flang-debug-oracle",
+      "displayName": "LLVM Flang Debug + VTK v9.7+ C++ Oracle",
+      "description": "Debug build with LLVM Flang (-std=f2018 -g -O0) and VTK v9.7.2 Debug oracle enabled",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/preset-flang-debug-oracle",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_MAKE_PROGRAM": "/opt/homebrew/bin/ninja",
+        "CMAKE_Fortran_COMPILER": "/opt/homebrew/bin/flang",
+        "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+        "FVTKHTG_BUILD_TESTING": "ON",
+        "FVTKHTG_BUILD_ORACLE_TESTS": "ON"
+      }
+    },
+    {
+      "name": "gfortran-debug-oracle",
+      "displayName": "GNU gfortran Debug + VTK v9.7+ C++ Oracle",
+      "description": "Debug build with GNU gfortran (-std=f2018 -fcheck=all -g -O0) and VTK v9.7.2 Debug oracle enabled",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/preset-gfortran-debug-oracle",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_MAKE_PROGRAM": "/opt/homebrew/bin/ninja",
+        "CMAKE_Fortran_COMPILER": "/opt/homebrew/bin/gfortran",
+        "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+        "FVTKHTG_BUILD_TESTING": "ON",
+        "FVTKHTG_BUILD_ORACLE_TESTS": "ON"
+      }
+    },
+    {
+      "name": "pure-fortran-release",
+      "displayName": "Pure Fortran 2018 Release (Zero C++/VTK)",
+      "description": "Strictly pure Fortran 2018 Release build with zero C++ or VTK dependency",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/preset-pure-fortran-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_MAKE_PROGRAM": "/opt/homebrew/bin/ninja",
+        "CMAKE_Fortran_COMPILER": "/opt/homebrew/bin/flang",
+        "FVTKHTG_BUILD_TESTING": "ON",
+        "FVTKHTG_BUILD_ORACLE_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "pure-fortran-debug",
+      "displayName": "Pure Fortran 2018 Debug (Zero C++/VTK)",
+      "description": "Strictly pure Fortran 2018 Debug build with zero C++ or VTK dependency",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/preset-pure-fortran-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_MAKE_PROGRAM": "/opt/homebrew/bin/ninja",
+        "CMAKE_Fortran_COMPILER": "/opt/homebrew/bin/flang",
+        "FVTKHTG_BUILD_TESTING": "ON",
+        "FVTKHTG_BUILD_ORACLE_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "flang-debug-oracle",
+      "configurePreset": "flang-debug-oracle"
+    },
+    {
+      "name": "gfortran-debug-oracle",
+      "configurePreset": "gfortran-debug-oracle"
+    },
+    {
+      "name": "pure-fortran-release",
+      "configurePreset": "pure-fortran-release"
+    },
+    {
+      "name": "pure-fortran-debug",
+      "configurePreset": "pure-fortran-debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "flang-debug-oracle",
+      "configurePreset": "flang-debug-oracle",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "gfortran-debug-oracle",
+      "configurePreset": "gfortran-debug-oracle",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "pure-fortran-release",
+      "configurePreset": "pure-fortran-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "pure-fortran-debug",
+      "configurePreset": "pure-fortran-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

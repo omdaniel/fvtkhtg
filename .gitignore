@@ -1,0 +1,10 @@
+build/
+.cache/
+.venv/
+__pycache__/
+*.pyc
+*.mod
+*.smod
+*.o
+*.a
+.DS_Store

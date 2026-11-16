@@ -1,0 +1,6 @@
+[project]
+name = "fvtkhtg-tools"
+version = "0.1.0"
+description = "Verification and LLDB lockstep scripting tools for fvtkhtg"
+requires-python = ">=3.14,<3.15"
+dependencies = []

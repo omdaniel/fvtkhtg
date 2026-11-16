@@ -1,0 +1,38 @@
+# fvtkhtgConfig.cmake
+#
+#   find_package(fvtkhtg CONFIG REQUIRED)                    # fvtkhtg::fvtkhtg
+#   find_package(fvtkhtg CONFIG REQUIRED COMPONENTS vtkhdf)  # + fvtkhtg::fvtkhtg_vtkhdf
+#
+# The vtkhdf component exists only if fvtkhtg was built with
+# FVTKHTG_BUILD_VTKHDF_BRIDGE=ON; requesting it also finds fVTKHDF.
+
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/fvtkhtgTargets.cmake")
+set(fvtkhtg_fvtkhtg_FOUND TRUE)
+
+# Fortran module files only work with the compiler that produced them.
+set(fvtkhtg_Fortran_COMPILER_ID "@CMAKE_Fortran_COMPILER_ID@")
+set(fvtkhtg_Fortran_COMPILER_VERSION "@CMAKE_Fortran_COMPILER_VERSION@")
+if(CMAKE_Fortran_COMPILER_ID AND
+   NOT CMAKE_Fortran_COMPILER_ID STREQUAL fvtkhtg_Fortran_COMPILER_ID)
+  message(WARNING
+    "fvtkhtg was built with ${fvtkhtg_Fortran_COMPILER_ID} "
+    "${fvtkhtg_Fortran_COMPILER_VERSION}, but this project uses "
+    "${CMAKE_Fortran_COMPILER_ID}; its .mod files will not be readable.")
+endif()
+
+set(fvtkhtg_vtkhdf_FOUND FALSE)
+if("vtkhdf" IN_LIST fvtkhtg_FIND_COMPONENTS)
+  if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/fvtkhtgVtkhdfTargets.cmake")
+    include(CMakeFindDependencyMacro)
+    find_dependency(fVTKHDF CONFIG)
+    include("${CMAKE_CURRENT_LIST_DIR}/fvtkhtgVtkhdfTargets.cmake")
+    set(fvtkhtg_vtkhdf_FOUND TRUE)
+  else()
+    set(fvtkhtg_vtkhdf_NOT_FOUND_MESSAGE
+      "fvtkhtg was built without FVTKHTG_BUILD_VTKHDF_BRIDGE")
+  endif()
+endif()
+
+check_required_components(fvtkhtg)
