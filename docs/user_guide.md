@@ -89,7 +89,7 @@ use fvtkhtg
 | `FVTKHTG_BUILD_EXAMPLES` | `ON` when top-level | Build runnable Fortran 2018 example programs (`<build>/examples/01..06`) and register them with CTest when testing is enabled |
 | `FVTKHTG_WARNINGS_AS_ERRORS` | `OFF` | Treat compiler warnings as errors (`-Werror`) |
 | `FVTKHTG_BUILD_ORACLE_TESTS` | `OFF` | Build optional C++17 differential & LLDB lockstep tests against VTK `v9.7.2` |
-| `FVTKHTG_BUILD_VTKHDF_BRIDGE` | `OFF` | Build the optional `fvtkhtg_vtkhdf` library that writes grids with `fvtkhdf` (needs an installed `fVTKHDF` >= 0.7 with the HyperTreeGrid writer) |
+| `FVTKHTG_BUILD_VTKHDF_BRIDGE` | `OFF` | Build the optional `fvtkhtg_vtkhdf` library that writes grids with `fvtkhdf` (needs an installed `fVTKHDF` >= 0.8 with the HyperTreeGrid writer) and, when testing is on, the round-trip tests that read the files back with VTK |
 | `FVTKHTG_INSTALL` | `ON` when top-level | Generate install rules and a `fvtkhtgConfig.cmake` package |
 
 "When top-level" means the default is `ON` when `fvtkhtg` is built on its own and `OFF` when it is pulled into another project with `add_subdirectory` or `FetchContent`. Compiler flags (`-std=f2018`, warnings, `-fcheck=all`) are applied to `fvtkhtg`'s own targets only and never leak into a parent project.
@@ -639,7 +639,7 @@ For time-dependent output the caller keeps control of `start_time_step` / `final
 
 | Routine | Wraps |
 | :--- | :--- |
-| `htg_vtkhdf_write_mesh(file, grid)` | `write_mesh` (once per file) |
+| `htg_vtkhdf_write_mesh(file, grid [, status])` | `write_mesh` (once per file), including the interface array names when the grid has an interface |
 | `htg_vtkhdf_write_geometry(file, grid)` | `write_mesh_geometry` |
 | `htg_vtkhdf_write_topology(file, grid, bf [, status, force_mask])` | `export_breadth_first` + `write_mesh_topology`; returns `bf` |
 | `htg_vtkhdf_write_cell_data(file, bf, field [, status, name, attribute])` | `gather` + static `write_cell_data` |
@@ -650,9 +650,26 @@ For time-dependent output the caller keeps control of `start_time_step` / `final
 In MPI builds of `fvtkhdf` every call is collective: each rank passes the trees it owns (no tree may be split between ranks), all ranks must agree on dimensions, branch factor, root indexing and the names, order, types and component counts of their `CellData` arrays, and if any rank has a mask all ranks must pass `force_mask = .true.`.
 
 > [!NOTE]
-> **Current limitations of the seam**:
-> - `fvtkhdf` does not yet write the `InterfaceNormalsName` / `InterfaceInterceptsName` attributes that VTK's reader uses for material interfaces; the `Normals` and `Intercepts` arrays are written as ordinary cell data.
-> - `fvtkhtg` cannot coarsen a tree, so a solver writing a changing mesh (`VTKHDF_DYNAMIC_MESH`) rebuilds any tree that coarsens; the export handles any refinement order.
+> **Details worth knowing**:
+> - **Material interfaces.** When `grid%get_has_interface()` is true, `htg_vtkhdf_write_mesh` (and so `htg_vtkhdf_write_static`) passes the normals and intercepts array names to the writer, which stores them as the `InterfaceNormalsName` / `InterfaceInterceptsName` attributes; VTK then re-enables the interface on reading. The names must be ones the writer stores unchanged (non-blank, no `/`, `.` or space), or the bridge returns `HTG_ERR_INTERFACE`. This needs an `fvtkhdf` whose `write_mesh` takes `interface_normals_name` / `interface_intercepts_name`.
+> - **Changing meshes always carry a mask.** For `VTKHDF_DYNAMIC_MESH` files `fvtkhdf` stores a mask at every step, all clear when the grid has none, so a grid read back by VTK reports a mask even if you never set one.
+> - **Bit arrays** arrive in VTK as `unsigned char` arrays holding 0 and 1.
+
+#### Verified Round Trip
+
+With the bridge enabled and testing on, two tests (label `vtkhdf`) check the whole path through a real file:
+
+```bash
+cmake -S . -B build/bridge -G Ninja -DFVTKHTG_BUILD_VTKHDF_BRIDGE=ON \
+  -DCMAKE_PREFIX_PATH="/path/to/fvtkhdf/install;/path/to/hdf5"
+cmake --build build/bridge
+ctest --test-dir build/bridge -L vtkhdf --output-on-failure
+```
+
+- **`vtkhdf_roundtrip_write`** ([`test/vtkhdf/test_vtkhdf_roundtrip_write.f90`](../test/vtkhdf/test_vtkhdf_roundtrip_write.f90)) builds seven kinds of grid with `fvtkhtg` and writes each through the bridge: a sparse 2D forest with all five array types, active scalars and masked leaves and refined cells; a 3D ternary grid with transposed root indexing and scrambled explicit global IDs; an XZ-plane grid with a material interface; a 1D grid with descending coordinates; a depth-limited grid; a grid refined, filled and then coarsened; and a three-step changing mesh with temporal cell data. Next to each file it records what every exported cell should be.
+- **`vtkhdf_roundtrip_read`** ([`test/vtkhdf/check_vtkhdf_roundtrip.py`](../test/vtkhdf/check_vtkhdf_roundtrip.py)) reads the files with VTK's own `vtkHDFReader`, the reader ParaView uses, and compares every cell reached through a VTK geometry cursor: level, bounds (exactly), leaf or refined, masked or not, and every cell-data value (exactly). The standard arrays are also recomputed from each cell's tree and path, independently of both `fvtkhtg`'s storage and the file. It needs the Python `vtk` package 9.7 or later and is reported as skipped without it.
+
+The write half needs a serial `fvtkhdf` build (the test is not configured against an MPI build). Enabling the bridge also enables the C language in the build, because HDF5's CMake package needs it; the bridge itself is Fortran.
 
 See runnable program: [`examples/05_breadth_first_export.f90`](../examples/05_breadth_first_export.f90).
 

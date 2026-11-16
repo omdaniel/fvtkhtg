@@ -19,12 +19,16 @@
 !>
 !> Errors detected on the fvtkhtg side are returned in `status`; the fvtkhdf
 !> writer reports its own errors by aborting.
+!>
+!> Requires an fvtkhdf whose HyperTreeGrid writer accepts the interface array
+!> names on write_mesh. The whole path is exercised through real files, read
+!> back with VTK's vtkHDFReader, by test/vtkhdf.
 module fvtkhtg_vtkhdf
    use, intrinsic :: iso_fortran_env, only: int8, int32, int64, real32, real64
    use fvtkhtg, only: htg_grid_t, htg_breadth_first_t, htg_field_array_t, &
       htg_status_t, htg_set_ok, htg_fail, id_k, i32_k, &
       HTG_TYPE_REAL64, HTG_TYPE_REAL32, HTG_TYPE_INT64, HTG_TYPE_INT32, HTG_TYPE_BIT, &
-      HTG_ERR_INVALID_ARG, HTG_ERR_INVALID_STATE
+      HTG_ERR_INVALID_ARG, HTG_ERR_INVALID_STATE, HTG_ERR_INTERFACE
    use vtkhdf_htg_file_type, only: vtkhdf_htg_file, vtkhdf_cell_data_handle
    implicit none
    private
@@ -40,23 +44,52 @@ module fvtkhtg_vtkhdf
 
 contains
 
-   !> Define the root grid: point dimensions, branch factor, root indexing.
-   !> Call once per file.
+   !> Define the root grid: point dimensions, branch factor, root indexing
+   !> and, when the grid has a material interface, the names of its normals
+   !> and intercepts arrays. Call once per file.
+   !>
+   !> The interface names are stored as file attributes that VTK matches
+   !> against cell array names, so they must be names the writer stores
+   !> unchanged: non-blank, without '/', '.' or spaces.
    subroutine htg_vtkhdf_write_mesh(file, grid, status)
       type(vtkhdf_htg_file), intent(inout) :: file
       type(htg_grid_t), intent(in) :: grid
       type(htg_status_t), intent(out), optional :: status
+
+      character(len=:), allocatable :: normals, intercepts
 
       if (.not. grid%is_dimensions_set()) then
          call htg_fail(HTG_ERR_INVALID_STATE, &
             'htg_vtkhdf_write_mesh: grid dimensions are not set', status)
          return
       end if
-      call file%write_mesh(int(grid%get_dimensions()), &
-         branch_factor=int(grid%get_branch_factor()), &
-         transposed_root_indexing=grid%get_transposed_root_indexing())
+
+      if (grid%get_has_interface()) then
+         normals = grid%get_interface_normals_name()
+         intercepts = grid%get_interface_intercepts_name()
+         if (.not. (stored_unchanged(normals) .and. stored_unchanged(intercepts))) then
+            call htg_fail(HTG_ERR_INTERFACE, &
+               'htg_vtkhdf_write_mesh: interface array names must be non-blank and ' // &
+               'contain no "/", "." or space', status)
+            return
+         end if
+         call file%write_mesh(int(grid%get_dimensions()), &
+            branch_factor=int(grid%get_branch_factor()), &
+            transposed_root_indexing=grid%get_transposed_root_indexing(), &
+            interface_normals_name=normals, interface_intercepts_name=intercepts)
+      else
+         call file%write_mesh(int(grid%get_dimensions()), &
+            branch_factor=int(grid%get_branch_factor()), &
+            transposed_root_indexing=grid%get_transposed_root_indexing())
+      end if
       call htg_set_ok(status)
    end subroutine htg_vtkhdf_write_mesh
+
+   !> Would fvtkhdf store this cell array name as it is?
+   pure logical function stored_unchanged(name)
+      character(len=*), intent(in) :: name
+      stored_unchanged = (len_trim(name) > 0) .and. (scan(trim(name), '/. ') == 0)
+   end function stored_unchanged
 
    !> Write the root grid's coordinate vectors (only rank zero's are stored).
    subroutine htg_vtkhdf_write_geometry(file, grid, status)

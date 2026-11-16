@@ -149,7 +149,10 @@ endif()
 # Optional bridge to the fvtkhdf HyperTreeGrid writer. The core library never
 # depends on fvtkhdf; only this separate target does.
 if(FVTKHTG_BUILD_VTKHDF_BRIDGE)
-  find_package(fVTKHDF 0.7 CONFIG REQUIRED)
+  # fVTKHDF's package finds HDF5, whose own package needs the C language
+  # enabled (for FindThreads). The bridge itself is pure Fortran.
+  enable_language(C)
+  find_package(fVTKHDF 0.8 CONFIG REQUIRED)
   add_library(fvtkhtg_vtkhdf STATIC "${CMAKE_CURRENT_SOURCE_DIR}/bridge/vtkhdf/fvtkhtg_vtkhdf.f90")
   add_library(fvtkhtg::fvtkhtg_vtkhdf ALIAS fvtkhtg_vtkhdf)
   set_target_properties(fvtkhtg_vtkhdf PROPERTIES
@@ -161,6 +164,11 @@ if(FVTKHTG_BUILD_VTKHDF_BRIDGE)
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/fvtkhtg>
   )
   target_link_libraries(fvtkhtg_vtkhdf PUBLIC fvtkhtg fVTKHDF::fvtkhdf)
+
+  # Round trip: write files through the bridge, read them back with VTK
+  if(FVTKHTG_BUILD_TESTING)
+    add_subdirectory(test/vtkhdf)
+  endif()
 endif()
 
 if(FVTKHTG_INSTALL)

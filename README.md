@@ -94,7 +94,7 @@ call file%write_cell_data('Pressure', p)
 
 **Index convention at the seam.** Everything inside `fvtkhtg` is 0-based, matching VTK. `htg_breadth_first_t` is the one exception: `tree_ids` and `xtree` are 1-based, as `fvtkhdf` expects, while `global_ids` keeps `fvtkhtg`'s 0-based global IDs and is used only for gathering.
 
-With `-DFVTKHTG_BUILD_VTKHDF_BRIDGE=ON`, the separate `fvtkhtg::fvtkhtg_vtkhdf` library wraps these calls (`call htg_vtkhdf_write_static(file, grid, status)` writes a whole grid). The core `fvtkhtg` library never links `fvtkhdf`. See [§4.9 of the user guide](docs/user_guide.md#49-writing-vtkhdf-files-breadth-first-export--the-fvtkhdf-seam) and [`examples/05_breadth_first_export.f90`](examples/05_breadth_first_export.f90).
+With `-DFVTKHTG_BUILD_VTKHDF_BRIDGE=ON`, the separate `fvtkhtg::fvtkhtg_vtkhdf` library wraps these calls (`call htg_vtkhdf_write_static(file, grid, status)` writes a whole grid). The core `fvtkhtg` library never links `fvtkhdf`. The same option builds a round-trip test (`ctest -L vtkhdf`) that writes seven kinds of grid through the bridge, including masks, a material interface, a coarsened grid and a changing mesh, and reads every cell back with VTK's own `vtkHDFReader`, the reader ParaView uses. See [§4.9 of the user guide](docs/user_guide.md#49-writing-vtkhdf-files-breadth-first-export--the-fvtkhdf-seam) and [`examples/05_breadth_first_export.f90`](examples/05_breadth_first_export.f90).
 
 ---
 
@@ -192,6 +192,7 @@ fvtkhtg/
 │   └── vtk_oracle_audit.md              # VTK v9.7.2 C++ source & LLDB ground-truth audit
 ├── test/
 │   ├── unit/                            # Pure-Fortran unit test suites
+│   ├── vtkhdf/                          # Round trip through fvtkhdf and VTK's VTKHDF reader (with the bridge)
 │   └── oracle/                          # C++17 VTK v9.7.2 differential & lockstep tests (test-only)
 └── tools/
     └── lldb/                            # Python 3.14 LLDB batch lockstep & DWARF inspection scripts
